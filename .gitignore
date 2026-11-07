@@ -1,0 +1,48 @@
+.venv/
+.tmp-evidence/
+.data/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Generated platform copies. The source of truth is skills/.
+.agents/
+.claude/
+.cursor/
+.codex/
+.kimi-code/
+.kiro/
+.workbuddy/
+.codebuddy/
+
+# User data and anything that can contain a personal session.
+data/
+captures/
+*.pcap
+*.pcapng
+cap.jsonl
+*.jsonl
+!tests/**/*.jsonl
+
+# External programs the user supplies. Do not vendor them.
+tools/
+*.exe
+*.dll
+frida-server*
+
+# Game client assets, archives, and temporary files.
+*.apk
+*.unity3d
+*.acb
+*.awb
+*.usm
+*.ivf
+*.zip
+*.log
+*.tmp
+*.part
+.env
+.env.*

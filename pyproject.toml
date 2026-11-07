@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "xian-skills"
+version = "0.1.0"
+description = "Local research tools and agent skills for 一念逍遥"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "xian-skills contributors" }]
+dependencies = []
+
+[project.optional-dependencies]
+decode = ["msgpack>=1.0", "pycryptodome>=3.20"]
+lua = ["UnityPy>=1.10"]
+runtime = ["frida>=16"]
+dev = ["pytest>=8"]
+all = ["msgpack>=1.0", "pycryptodome>=3.20", "UnityPy>=1.10"]
+
+[project.scripts]
+xian = "xian_skills.cli.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -4,8 +4,6 @@
 
 `xian-skills` 在玩家自己的 Windows 电脑上运行：连接本机 MuMu 模拟器、识别自己安装的正式服或证道服客户端、提取与增量管理快照、解密并导出配置表、检索道具与神通数值、对比版本差异、拆解活动奖励与消耗、导出贴图/模型/音频/视频，并在用户授权后录制本机会话流量辅助秘境与切磋机制研究。
 
-本项目已在第二台独立的 Windows + MuMu 12 + WorkBuddy 电脑上完成从 GitHub 安装、客户端同步、Lua 解密、反编译、全量导表、目录索引与“灵域”系统跨表机制研究的完整实测（见 [第二台电脑实测记录](docs/verification/2026-11-08-second-pc.md)）。
-
 本仓库不包含游戏客户端、账号凭据、会话抓包或未授权的第三方二进制工具，也不会向外部服务上传玩家数据。
 
 ---
@@ -32,7 +30,7 @@
 | Cursor | 复制到 `.cursor/skills/` 与 `.agents/skills/` | 已验证文件安装与 CLI 工作流，待新会话验证自动触发 |
 | Kimi Code | 复制到 `.kimi-code/skills/` 与 `.agents/skills/` | 已验证文件安装（限 Kimi Code CLI，非网页版） |
 | Kiro | 复制到 `.kiro/skills/` | 已验证文件安装（限桌面 IDE/CLI） |
-| 腾讯 WorkBuddy | 复制到 `~/.workbuddy/skills/`，或上传顶层就是技能文件夹的 ZIP | 已在第二台电脑实测完整 CLI 研究流程；调用 `%USERPROFILE%\.xian-skills\bin\xian.cmd`，不要改 `SKILL.md`。不使用 `.codebuddy/` |
+| 腾讯 WorkBuddy | 复制到 `~/.workbuddy/skills/`，或上传顶层就是技能文件夹的 ZIP | 调用 `%USERPROFILE%\.xian-skills\bin\xian.cmd`，不要改 `SKILL.md`。不使用 `.codebuddy/` |
 | 豆包工作 | 生成 `%USERPROFILE%\.xian-skills\dist\xian-skills-doubao-work.zip` | 需在客户端“技能 → 上传技能”导入并选“本地电脑”模式 |
 
 各平台目录规范详见 [docs/platforms.md](docs/platforms.md)。`xian install` 输出中的 `invocation_verified` 默认为 `false`，表示复制文件或生成上传包不等于已在全部 7 个客户端界面中逐一完成对话触发验证。
@@ -204,10 +202,10 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 ## 7. 当前 Alpha 版本（`v0.1.2-alpha`）的真实限制
 
 - **客户端配置不等于服务器最终结算**：配置表中的系数、奖励和活动规则仅代表客户端本地数据；未下发的服务器随机过程、实时个人限购与最终伤害结算无法单凭配置表确认。
-- **静态配置导表的数据完整性边界**：反编译成功不等于所有表都能靠静态字面量完整提取。例如在第二台电脑的 3001 个 Lua 文件中，2967 张表导出为 JSON，34 个文件属于逻辑代码跳过；导出表中包含 21 张通过运行时逻辑或 `rerequire("..._partN")` 动态生成的表（标记为 `data_status: "runtime_generated"`，顶层 `entries` 为 `0`）以及 19 张空表（`data_status: "empty"`）。为保证安全，工具不会执行不受信任的游戏 Lua 代码来生成动态表，研究时应继续查询对应的 `*_partN` 分片表或结合反编译源码核对。
+- **静态配置导表的数据完整性边界**：反编译成功不等于所有表都能靠静态字面量完整提取。部分配置表在客户端中通过运行时逻辑或 `rerequire("..._partN")` 分片延迟加载动态生成（导出时标记为 `data_status: "runtime_generated"`，顶层 `entries` 为 `0`），另有空表（`data_status: "empty"`）及非表逻辑脚本（导表阶段按预期跳过）。为保证安全，工具不会执行不受信任的游戏 Lua 代码来生成动态表，研究时应继续查询对应的 `*_partN` 分片表或结合反编译源码核对。
 - **跨表关联中的数值相等不等同于确认引用**：`xian query --link` 会将明确具有 ID/图标/奖励/消耗语义的匹配标记为 `semantic_reference`，将仅数值相等但语义未明的匹配标记为 `value_match`（候选关联），避免把巧合相同的数值直接当成真实关联。
-- **平台对话触发验证状态**：7 个目标 AI Agent 平台的技能目录安装与上传包生成均已实现，其中开发机（Cursor）与第二台电脑（腾讯 WorkBuddy）已完成真实客户端配置研究全流程验证，其余平台尚未逐一在客户端界面中发起真实对话验证（`invocation_verified: false`）。
-- **真机已验证与待验证边界**：正式服/证道服完整快照同步、Lua 批量解密、配置表反编译与全量导表、目录索引检索、跨表关联研究、跨渠道记录差异、贴图/模型/CRI 音频导出、USM 视频拆流均已在 Windows + MuMu 12 真机环境验证；开启 `adb root` 后的实机在线抓包录制、真实会话上行解码、MP4 转码（需安装 `ffmpeg`）及 `frida` 运行时探测仍需按需授权验证（详见本机验证记录）。
+- **平台对话触发验证状态**：7 个目标 AI Agent 平台的技能目录安装与上传包生成均已支持，但复制文件或生成上传包不等于已在全部客户端界面中完成自动触发（`invocation_verified: false`）。
+- **需单独授权或外部依赖的功能**：开启 `adb root` 后的在线抓包录制、真实会话上行解码、MP4 视频转码（需安装 `ffmpeg`）、CRI 音频解码（需配置 `vgmstream`）及 `frida` 运行时探测，均需用户按需准备外部工具并显式授权（`--yes`）。
 
 ---
 
@@ -242,10 +240,5 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 - [测试说明](docs/testing.md)
 - [项目架构](docs/architecture.md)
 - [许可证与外部组件说明](docs/licenses.md)
-- 本机与第二台电脑验证记录：
-  - [基础环境与初步检查 (2026-11-08)](docs/verification/local-2026-11-08.md)
-  - [真实客户端快照与资源验收 (2026-11-08)](docs/verification/2026-11-08-real-client.md)
-  - [全量配置查询、差异与工作流验证 (2026-11-08)](docs/verification/2026-11-08-agent.md)
-  - [第二台电脑 WorkBuddy 实测与反馈修复 (2026-11-08)](docs/verification/2026-11-08-second-pc.md)
 
 English overview: [README.en.md](README.en.md).

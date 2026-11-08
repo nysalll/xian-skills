@@ -1,6 +1,7 @@
 .venv/
 .tmp-evidence/
 .data/
+docs/verification/
 __pycache__/
 *.py[cod]
 .pytest_cache/

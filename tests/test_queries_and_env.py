@@ -1,4 +1,4 @@
-"""Regression checks from the second Windows + WorkBuddy install."""
+"""Synthetic coverage for recursive link queries, table completeness, and environment setup."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from xian_skills.query.ask import build_catalog, format_link_report, link_id
 from xian_skills.tools.decompiler import RELEASE, file_sha256, inspect_exe, install
 
 
-class SecondPcTests(unittest.TestCase):
+class QueryAndEnvTests(unittest.TestCase):
     def test_version_file_lines_are_not_snapshot_counts(self):
         parsed = parse_version_text("1.0.1\n1.0.2\n")
         self.assertEqual(parsed["current_version"], "1.0.2")

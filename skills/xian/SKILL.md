@@ -11,12 +11,25 @@ whenToUse: 用户要安装或使用 xian-skills，或要研究一念逍遥的客
 
 先读 [references/workflow.md](references/workflow.md)。命令细节见仓库 `docs/cli.md`。
 
+## 调用命令
+
+不要修改本文件，也不要把本机绝对路径写进技能。在 Windows 上运行：
+
+`%USERPROFILE%\.xian-skills\bin\xian.cmd`
+
+这个启动器会转到安装器记下的虚拟环境。若它不存在，再试仓库里的 `.venv\Scripts\xian.exe`，然后是 `python -m xian_skills`。
+
+## 授权
+
+“检查环境”“看看能不能用”“验证功能”“识别客户端”“读取版本”都不是授权。这些用 `doctor`、`status`、`client discover`、`client version`，不要加 `--yes`。
+
+只有用户明确同意复制文件、下载反编译器、抓包、改 root 或探测进程之后，才能加 `--yes`。同意前要说明范围、影响和保存位置。保存位置默认是 `%USERPROFILE%\.xian-skills\data`。
+
 ## 开始
 
-1. 在 `xian-skills` 目录运行 `xian status --json`。
+1. 运行 `xian status --json`。
 2. 查询用 `xian query --catalog <目录> --q "<原话>" --json`。差异用 `xian updates records`，并读它的 `warning`。活动用 `xian events analyze`。一条龙研究用 `xian research run`。
-3. 抓包、同步客户端、动态探测和删除缓存都必须带 `--yes`，并先复述影响。
-4. 客户端配置不是服务器结算。没有样本就不要把换算写成最终伤害。
+3. 客户端配置不是服务器结算。没有样本就不要把换算写成最终伤害。
 
 ## 路由
 

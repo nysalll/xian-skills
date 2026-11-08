@@ -56,10 +56,10 @@ PLATFORMS = {
     "workbuddy": {
         "title": "腾讯 WorkBuddy",
         "user": [".workbuddy/skills"],
-        "project": [".workbuddy/skills", ".codebuddy/skills"],
+        "project": [".workbuddy/skills"],
         "local_exec": "desktop-agent",
         "docs": "https://www.tencentcloud.com/zh/document/product/1316/84503",
-        "note": "官方已确认的安装方式是技能页上传含 SKILL.md 的技能包。文件系统目录来自产品说明中的用户目录/项目目录，以及公开文档里的 .codebuddy/skills；上传 ZIP 是稳妥路径。",
+        "note": "用户级目录是 ~/.workbuddy/skills/<技能名>/SKILL.md。ZIP 内每个技能直接位于顶层，不要再套一层 skills/。不要把技能装进 .codebuddy，那是 CodeBuddy 的目录。调用 xian 用 %USERPROFILE%\\.xian-skills\\bin\\xian.cmd，不要改 SKILL.md 里的路径。",
         "zip": True,
     },
     "doubao-work": {
@@ -129,7 +129,7 @@ def make_zip(source: Path, dest: Path) -> Path:
     with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as archive:
         for file in sorted(source.rglob("*")):
             if file.is_file() and "__pycache__" not in file.parts and not file.name.endswith(".pyc"):
-                archive.write(file, file.relative_to(source.parent).as_posix())
+                archive.write(file, file.relative_to(source).as_posix())
     return dest
 
 

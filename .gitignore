@@ -28,7 +28,7 @@ cap.jsonl
 !tests/**/*.jsonl
 
 # External programs the user supplies. Do not vendor them.
-tools/
+/tools/
 *.exe
 *.dll
 frida-server*

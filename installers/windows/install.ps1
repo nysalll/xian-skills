@@ -23,6 +23,10 @@ $venvXian = Join-Path $Root ".venv\Scripts\xian.exe"
 & $venvPython -m pip install --upgrade pip
 & $venvPython -m pip install -e ".[decode,lua]"
 & $venvXian init
+$launcherHome = Join-Path $env:USERPROFILE ".xian-skills"
+New-Item -ItemType Directory -Force -Path (Join-Path $launcherHome "bin") | Out-Null
+Set-Content -Path (Join-Path $launcherHome "xian-launcher.txt") -Value $venvXian -Encoding ascii
+Copy-Item (Join-Path $PSScriptRoot "xian.cmd") (Join-Path $launcherHome "bin\xian.cmd") -Force
 $installArgs = @("install", "--project", $Root)
 if ($User) {
     $installArgs += "--user"

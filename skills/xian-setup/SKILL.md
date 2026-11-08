@@ -28,8 +28,12 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 - 有多台设备时停下，用用户指定的 `--device`。
 - 未安装的渠道保持可用，不要因为没有证道服而中止正式服流程。
 - `ready` 只表示依赖在；`basic_tested` 是合成测试；`verified` 才是这台机器上的实际检查。
+- 反编译器没装时，反编译和导表不能报成已验证。
+- 设备显示 `offline` 时停下来说明，不要换一个 adb.exe 再试。
 
 ## 依赖
 
 用户明确同意后，在虚拟环境执行 `xian init --yes` 安装 msgpack、pycryptodome 和 UnityPy。
-反编译器、vgmstream、ffmpeg、tcpdump 和 frida-server 不随仓库提供，只把路径写进配置。
+反编译器要单独同意后用 `xian tools decompiler --install --yes`。vgmstream、ffmpeg、tcpdump 和 frida-server 不随仓库提供。
+
+检查环境、读取版本和运行单元测试都不等于同意整包同步、抓包或进程探测。

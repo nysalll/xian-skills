@@ -21,5 +21,8 @@ xian client materialize --channel official --snapshot <快照> --dest <导出目
 xian client import-dir --channel official --version <版本> --src <本地目录>
 ```
 
-同步前说明：会把游戏文件复制到本地仓库，旧快照不覆盖。校验失败时不提交新快照。
-没有证道服时只处理正式服。版本文件取最后一行作为当前版本，并保留历史尾部。
+`discover`、`version`、`snapshots`、`diff` 是只读命令，不要加 `--yes`。
+
+`sync` 和 `pull` 会把模拟器里的游戏文件复制到 `%USERPROFILE%\.xian-skills\data`。用户说检查环境或验证功能时，不要执行它们。先说明要复制哪个渠道、大约哪些目录，以及旧快照不会被覆盖。用户明确同意后再加 `--yes`。
+
+没有证道服时只处理正式服。`current_version` 是 version.txt 的最后一行。`version_txt_line_count` 是这个文件里的历史行数，不是本机快照份数。

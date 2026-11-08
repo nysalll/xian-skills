@@ -1,6 +1,6 @@
 # xian-skills
 
-面向《一念逍遥》玩家的本机游戏数据研究工具与 AI Agent 技能集（当前版本：`v0.1.0-alpha`，Python 包版本 `0.1.0`）。
+面向《一念逍遥》玩家的本机游戏数据研究工具与 AI Agent 技能集（当前版本：`0.1.1`）。
 
 `xian-skills` 在玩家自己的 Windows 电脑上运行：连接本机 MuMu 模拟器、识别自己安装的正式服或证道服客户端、提取与增量管理快照、解密并导出配置表、检索道具与神通数值、对比版本差异、拆解活动奖励与消耗、导出贴图/模型/音频/视频，并在用户授权后录制本机会话流量辅助秘境与切磋机制研究。
 
@@ -30,7 +30,7 @@
 | Cursor | 复制到 `.cursor/skills/` 与 `.agents/skills/` | 已验证文件安装与 CLI 工作流，待新会话验证自动触发 |
 | Kimi Code | 复制到 `.kimi-code/skills/` 与 `.agents/skills/` | 已验证文件安装（限 Kimi Code CLI，非网页版） |
 | Kiro | 复制到 `.kiro/skills/` | 已验证文件安装（限桌面 IDE/CLI） |
-| 腾讯 WorkBuddy | 复制目录并生成 `%USERPROFILE%\.xian-skills\dist\xian-skills-workbuddy.zip` | 需在桌面端技能页上传 ZIP 导入，未实测触发 |
+| 腾讯 WorkBuddy | 复制到 `~/.workbuddy/skills/`，或上传顶层就是技能文件夹的 ZIP | 调用 `%USERPROFILE%\.xian-skills\bin\xian.cmd`，不要改 SKILL.md。不使用 `.codebuddy/` |
 | 豆包工作 | 生成 `%USERPROFILE%\.xian-skills\dist\xian-skills-doubao-work.zip` | 需在客户端“技能 → 上传技能”导入并选“本地电脑”模式 |
 
 各平台目录规范详见 [docs/platforms.md](docs/platforms.md)。`xian install` 输出中的 `invocation_verified` 默认为 `false`，表示技能文件已就绪但未宣称已在对应客户端内完成对话验证。
@@ -42,7 +42,7 @@
 你可以直接把下面这段话复制给你的 AI Agent（如 Cursor、Claude Code、Codex、Kimi Code 等）：
 
 ```text
-请帮我在当前 Windows 电脑上从 https://github.com/nysalll/xian-skills.git 克隆 xian-skills 仓库，严格按照仓库 README.md 的步骤运行 installers\windows\install.ps1 完成虚拟环境和技能初始化，然后依次执行 xian doctor、xian verify 和 xian status，最后用通俗的话告诉我当前电脑、MuMu 模拟器、正式服/证道服客户端以及各项研究功能的状态。未经我明确同意，不要执行带 --yes 的抓包、整包拉取或进程探测命令。
+请帮我在当前 Windows 电脑上从 https://github.com/nysalll/xian-skills.git 克隆 xian-skills 仓库，严格按照仓库 README.md 的步骤运行 installers\windows\install.ps1 完成虚拟环境和技能初始化，然后依次执行 xian doctor、xian verify 和 xian status，最后用通俗的话告诉我当前电脑、MuMu 模拟器、正式服/证道服客户端以及各项研究功能的状态。检查环境、读取版本和运行测试不算同意。未经我明确同意，不要执行带 --yes 的整包同步、下载反编译器、抓包或进程探测。
 ```
 
 ### 给 Agent 的标准安装顺序
@@ -172,8 +172,8 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 | --- | --- | --- |
 | Python 3.10+ | 运行 `xian` CLI | 用户从 Python 官网安装，仓库不内置 |
 | `msgpack`、`pycryptodome`、`UnityPy` | 协议解析、上行解密、AssetBundle 读取 | `install.ps1` 或 `xian init --yes` 自动装入 `.venv` |
-| Android `adb` | 连接模拟器、读取版本与拉取客户端 | 自动识别 MuMu 自带 `adb.exe` 或系统 `adb`，也可配置 `adb_path` |
-| LuaJIT 反编译器 | 将解密后的 LuaJIT 字节码反编译为 `.lua` 源码 | 仓库不内置；用户自备后将路径写入 `config.json` 的 `decompiler_path` |
+| Android `adb` | 连接模拟器、读取版本与拉取客户端 | 已有 adb 服务时继续用它。没有服务时优先 MuMu 自带的 adb。设备 offline 时不要换另一个 adb.exe |
+| LuaJIT 反编译器 | 将解密后的 LuaJIT 字节码反编译为 `.lua` 源码 | 不随仓库分发。用户同意后执行 `xian tools decompiler --install --yes`，只下载 marsinator358 的 `Mar_24_2024` Windows 文件并核对 SHA256 |
 | `vgmstream-cli` | 解码 `.acb` 音频 bank 为 `.wav` | 仓库不内置；用户自备后将路径写入 `vgmstream_path` |
 | `ffmpeg` | 将 USM 拆出的 `.ivf` 视频转码为 `.mp4` | 仓库不内置；放入系统 PATH 或写入 `ffmpeg_path`（无 `ffmpeg` 时保留 `.ivf`） |
 | 模拟器 `root` + `tcpdump` | `xian capture start --yes` 本机抓包 | 需模拟器开启 root 且系统内含 `/system/bin/tcpdump`；无 root 时抓包不可用，不影响本地配置与资源分析 |

@@ -32,22 +32,26 @@ def _warehouse(cfg):
     return warehouse
 
 
-def _adb(cfg, device: str = ""):
+def _adb(cfg, device: str = "", replace: bool = False):
     from xian_skills.device.adb import Adb
-    from xian_skills.device.discover import choose_adb, discover_endpoints, list_devices
+    from xian_skills.device.select import select_adb
 
-    exe, _candidates = choose_adb(cfg.data.get("adb_path") or "")
+    report = select_adb(cfg.data.get("adb_path") or "", auto_connect=bool(cfg.data.get("auto_connect", True)), replace=replace)
+    exe = report.get("adb")
     if not exe:
-        raise EnvError("没有找到 adb。安装 Platform-Tools，或在配置里写 adb_path。")
-    endpoints = discover_endpoints() if cfg.data.get("auto_connect", True) else []
-    report = list_devices(exe, auto_connect=bool(cfg.data.get("auto_connect", True)), endpoints=endpoints)
+        raise EnvError("没有找到 adb。安装 Platform-Tools，或在配置里写 adb_path。", payload=report)
+    if report.get("adb") and not cfg.data.get("adb_path"):
+        cfg.data["adb_path"] = exe
+        save_config(cfg)
     serial = device or cfg.data.get("device") or ""
+    online = report.get("online") or []
+    if serial and serial in (report.get("offline") or []):
+        raise EnvError(report.get("diagnosis") or f"{serial} 处于 offline。", payload=report)
     if not serial:
-        online = [row for row in report["devices"] if row.get("state") == "device"]
         if len(online) == 1:
-            serial = online[0]["serial"]
+            serial = online[0]
         elif not online:
-            raise EnvError("没有在线设备。先启动模拟器，或用 --device 指定。", payload=report)
+            raise EnvError(report.get("diagnosis") or "没有在线设备。先启动模拟器，或用 --device 指定。", payload=report)
         else:
             raise NeedConfirm("有多台在线设备，请用 --device 指定。", payload={"devices": online})
     return Adb(exe, serial)
@@ -57,6 +61,28 @@ def _clients(cfg, adb):
     from xian_skills.client.sync import discover_client
 
     return discover_client(adb, cfg.data.get("channels") or {})
+
+
+def _write_launcher() -> None:
+    exe = Path(sys.executable).with_name("xian.exe")
+    if not exe.is_file():
+        return
+    home = Path.home() / ".xian-skills"
+    bin_dir = home / "bin"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    (home / "xian-launcher.txt").write_text(str(exe) + "\n", encoding="utf-8")
+    bundled = Path(__file__).resolve().parents[3] / "installers" / "windows" / "xian.cmd"
+    if bundled.is_file():
+        (bin_dir / "xian.cmd").write_bytes(bundled.read_bytes())
+
+
+def cmd_tools_decompiler(args):
+    from xian_skills.tools.decompiler import install, status
+
+    cfg = _cfg(args)
+    payload = install(cfg, yes=args.yes) if args.install else status(cfg.data.get("decompiler_path") or "")
+    _print(payload, args.json)
+    return 0
 
 
 def cmd_doctor(args):
@@ -76,6 +102,7 @@ def cmd_init(args):
     if args.device:
         cfg.data["device"] = args.device
     save_config(cfg)
+    _write_launcher()
     warehouse = _warehouse(cfg)
     deps = None
     if args.yes:
@@ -115,15 +142,26 @@ def cmd_status(args):
             clients = []
     warehouse = _warehouse(cfg)
     status = build_status(report, cfg.data_dir, clients)
+    from xian_skills.diagnostics.status import gate_states
+
+    decompiler_ok = bool((report.get("decompiler") or {}).get("verified_hash") or (report.get("decompiler") or {}).get("usable"))
+    has_snapshot = any(
+        snap.get("complete")
+        for channel in ("official", "zhengdao")
+        for snap in warehouse.list_snapshots(channel)
+    )
+    status["features"] = gate_states(status["features"], decompiler_ok=decompiler_ok, has_snapshot=has_snapshot)
     from xian_skills.storage.warehouse import latest_complete
 
     extracted = []
     for channel in ("official", "zhengdao"):
         latest = latest_complete(warehouse, channel)
+        snaps = warehouse.list_snapshots(channel)
         extracted.append(
             {
                 "channel": channel,
-                "snapshots": len(warehouse.list_snapshots(channel)),
+                "snapshots": len(snaps),
+                "complete_count": sum(1 for snap in snaps if snap.get("complete")),
                 "latest_complete": None
                 if latest is None
                 else {"id": latest["id"], "version": latest.get("version"), "files": len(latest.get("files") or [])},
@@ -811,6 +849,13 @@ def build_parser() -> argparse.ArgumentParser:
     history = updates_sub.add_parser("history")
     history.add_argument("--channel", required=True, choices=("official", "zhengdao"))
     history.set_defaults(func=cmd_updates_history)
+
+    tools = sub.add_parser("tools", help="准备外部工具")
+    tools_sub = tools.add_subparsers(dest="tools_cmd", required=True)
+    decompiler = tools_sub.add_parser("decompiler")
+    decompiler.add_argument("--install", action="store_true")
+    decompiler.add_argument("--yes", action="store_true")
+    decompiler.set_defaults(func=cmd_tools_decompiler)
 
     cache = sub.add_parser("cache", help="只清理可再生缓存")
     cache_sub = cache.add_subparsers(dest="cache_cmd", required=True)

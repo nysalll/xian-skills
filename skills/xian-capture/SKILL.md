@@ -8,7 +8,7 @@ whenToUse: 用户明确要求录自己的游戏流量，或解析已经存在的
 
 # xian-capture
 
-开始前说明：可能执行 `adb root`，在设备上启动 tcpdump，结果只写本地数据目录，不上传。登录由用户自己完成。
+检查环境或验证功能不是抓包授权。开始前要说明：可能执行 `adb root`，在设备上启动 tcpdump，结果只写 `%USERPROFILE%\.xian-skills\data\captures`，不上传。用户明确同意后再加 `--yes`。登录由用户自己完成。
 
 ```powershell
 xian capture start --session <名字> --minutes 10 --profile full --yes

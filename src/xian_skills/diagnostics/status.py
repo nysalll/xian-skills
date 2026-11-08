@@ -69,6 +69,24 @@ def effective_state(feature: dict, doctor: dict, stored: dict) -> str:
     return "unverified"
 
 
+def gate_states(rows: list[dict], decompiler_ok: bool, has_snapshot: bool) -> list[dict]:
+    """A configured feature name is not the same as a verified run."""
+    for row in rows:
+        if row["id"] == "lua_decompile" and not decompiler_ok and row["state"] != "verified":
+            row["state"] = "missing_deps"
+            row["evidence"] = "反编译器还没有安装。确认后执行 xian tools decompiler --install --yes"
+        if row["id"] == "lua_tables" and row["state"] == "ready" and not decompiler_ok:
+            row["state"] = "missing_deps"
+            row["evidence"] = "配置导表要等反编译器就位并完成反编译"
+        if row["id"] == "query" and row["state"] == "ready":
+            row["state"] = "unverified"
+            row["evidence"] = "还没有这台机器导出的配置索引"
+        if row["id"] in {"client_pull", "client_sync"} and row["state"] == "verified" and not has_snapshot:
+            row["state"] = "unverified"
+            row["evidence"] = "没有完整快照，不能把旧记录当成这台机器已验证"
+    return rows
+
+
 def examples_for(states: dict, clients: list[dict] | None = None) -> list[str]:
     clients = clients or []
     installed = [row for row in clients if row.get("installed")]
@@ -128,7 +146,9 @@ def format_status(report: dict) -> str:
         for row in warehouse.get("channels") or []:
             latest = row.get("latest_complete")
             if latest:
-                lines.append(f"已提取 {row['channel']} {latest['version']}，{latest['files']} 个文件，快照 {latest['id']}")
+                lines.append(
+                    f"{row['channel']} 当前客户端版本 {latest['version']}；完整快照 {row.get('complete_count', 1)} 份；最新快照 {latest['files']} 个文件"
+                )
             else:
                 lines.append(f"{row['channel']} 还没有完整快照")
     devices = report.get("online_devices") or []
@@ -136,9 +156,12 @@ def format_status(report: dict) -> str:
     if report.get("clients"):
         lines.append("客户端：")
         for client in report["clients"]:
-            version = (client.get("version") or {}).get("current") or "未知"
+            version = (client.get("version") or {})
             flag = "已安装" if client.get("installed") else "未安装"
-            lines.append(f"  {client.get('label')} {flag} {version}")
+            current = version.get("current_version") or version.get("current") or "未知"
+            lines.append(f"  {client.get('label')} {flag}，当前版本 {current}")
+            if version.get("version_txt_line_count"):
+                lines.append(f"    version.txt 有 {version['version_txt_line_count']} 行历史，这不是快照份数")
     lines.append("")
     lines.append("功能：")
     labels = report["legend"]

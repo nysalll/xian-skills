@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from xian_skills.device.discover import choose_adb, discover_endpoints, list_devices
+from xian_skills.device.discover import choose_adb
 from xian_skills.version import __version__
 
 
@@ -79,17 +79,23 @@ def doctor(cfg, probe_devices: bool = True) -> dict:
     py = check_python()
     modules = check_modules()
     tools = check_tools(cfg)
-    adb_path, adb_candidates = choose_adb(cfg.data.get("adb_path") or "")
+    from xian_skills.device.select import select_adb
+    from xian_skills.tools.decompiler import status as decompiler_status
+
     device_report = None
-    if probe_devices and adb_path:
+    if probe_devices:
         try:
-            endpoints = discover_endpoints() if cfg.data.get("auto_connect", True) else []
-            device_report = list_devices(adb_path, auto_connect=bool(cfg.data.get("auto_connect", True)), endpoints=endpoints)
+            device_report = select_adb(cfg.data.get("adb_path") or "", auto_connect=bool(cfg.data.get("auto_connect", True)))
         except Exception as exc:
-            device_report = {"adb": adb_path, "error": f"{type(exc).__name__}: {exc}", "devices": []}
-    elif not adb_path:
-        device_report = {"adb": None, "devices": [], "error": "未找到 adb"}
-    ready = [row["serial"] for row in (device_report or {}).get("devices") or [] if row.get("state") == "device"]
+            device_report = {"adb": None, "error": f"{type(exc).__name__}: {exc}", "devices": [], "online": [], "offline": []}
+    else:
+        from xian_skills.device.discover import choose_adb
+
+        adb_path, adb_candidates = choose_adb(cfg.data.get("adb_path") or "")
+        device_report = {"adb": adb_path, "candidates": [{"path": item, "source": ""} for item in adb_candidates], "devices": [], "online": [], "offline": [], "note": "", "diagnosis": ""}
+    adb_path = (device_report or {}).get("adb")
+    ready = list((device_report or {}).get("online") or [])
+    decompiler = decompiler_status(cfg.data.get("decompiler_path") or "")
     return {
         "tool_version": __version__,
         "home": str(Path(os.environ.get("XIAN_HOME") or (Path.home() / ".xian-skills"))),
@@ -99,10 +105,16 @@ def doctor(cfg, probe_devices: bool = True) -> dict:
         "external_tools": tools,
         "adb": {
             "selected": adb_path,
-            "candidates": adb_candidates,
+            "source": (device_report or {}).get("source"),
+            "candidates": (device_report or {}).get("candidates") or [],
+            "running": (device_report or {}).get("running") or [],
+            "offline": (device_report or {}).get("offline") or [],
+            "note": (device_report or {}).get("note") or "",
+            "diagnosis": (device_report or {}).get("diagnosis") or "",
             "ok": bool(adb_path),
-            "fix": "安装 Android SDK Platform-Tools，或在配置里设置 adb_path。官方压缩包：https://dl.google.com/android/repository/platform-tools-latest-windows.zip",
+            "fix": "安装 Android SDK Platform-Tools，或在配置里设置 adb_path。已有 adb 服务时不要再换一个 adb.exe。",
         },
+        "decompiler": decompiler,
         "devices": device_report,
         "online_devices": ready,
     }
@@ -114,8 +126,12 @@ def format_doctor(report: dict) -> str:
         f"xian-skills {report['tool_version']}",
         f"Python {py['detail']}  venv={py['venv']}  {'可用' if py['ok'] else '版本过低'}",
         f"数据目录 {report['data_dir']}",
-        f"adb {report['adb']['selected'] or '未找到'}",
+        f"adb {report['adb']['selected'] or '未找到'}  来源 {report['adb'].get('source') or '未知'}",
     ]
+    if report["adb"].get("note"):
+        lines.append(report["adb"]["note"])
+    if report["adb"].get("diagnosis"):
+        lines.append(report["adb"]["diagnosis"])
     devices = (report.get("devices") or {}).get("devices") or []
     if devices:
         lines.append("设备：")
@@ -123,6 +139,13 @@ def format_doctor(report: dict) -> str:
             lines.append(f"  {row['serial']}  {row['state']}  {row.get('model') or ''}")
     else:
         lines.append("设备：没有已连接设备")
+    decompiler = report.get("decompiler") or {}
+    if decompiler.get("verified_hash"):
+        lines.append("反编译器：已核对官方 SHA256")
+    elif (decompiler.get("configured") or {}).get("present"):
+        lines.append("反编译器：路径存在，但不是已固定的官方文件")
+    else:
+        lines.append("反编译器：未安装。确认后执行 xian tools decompiler --install --yes")
     missing = [row for row in report["modules"] if not row["ok"]]
     if missing:
         lines.append("缺少 Python 包：" + ", ".join(row["name"] for row in missing))

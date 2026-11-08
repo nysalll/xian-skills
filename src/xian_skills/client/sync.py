@@ -32,7 +32,14 @@ def parse_version_text(text: str) -> dict:
             break
     if not current and lines:
         current = lines[-1]
-    return {"current": current, "history_count": len(lines), "history_tail": lines[-5:]}
+    return {
+        "current_version": current,
+        "current": current,
+        "version_txt_line_count": len(lines),
+        "history_count": len(lines),
+        "history_tail": lines[-5:],
+        "note": "version_txt_line_count 是客户端 version.txt 里的历史行数，不是本机快照份数。",
+    }
 
 
 def remote_roots(package: str) -> list[str]:
@@ -242,7 +249,8 @@ def _store_local(warehouse, local: Path) -> dict:
 def sync_device(adb: Adb, warehouse, channel: str, package: str, yes: bool = False, include: list[str] | None = None) -> dict:
     if not yes:
         raise NeedConfirm(
-            "同步会从模拟器复制游戏文件到本地数据仓库。已有快照不会被覆盖。确认后加 --yes。",
+            "这会把模拟器里的游戏文件复制到本地数据目录。检查环境或读取版本不算同意。"
+            "已有快照不会被覆盖。确认复制范围后再加 --yes。",
             payload={"channel": channel, "package": package},
         )
     info = discover_client(adb, {channel: {"package": package, "label": channel}})

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xian-skills"
-version = "0.1.1"
+version = "0.1.2"
 description = "Local research tools and agent skills for 一念逍遥"
 readme = "README.md"
 requires-python = ">=3.10"

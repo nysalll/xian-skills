@@ -28,8 +28,21 @@ whenToUse: 用户要安装或使用 xian-skills，或要研究一念逍遥的客
 ## 开始
 
 1. 运行 `xian status --json`。
-2. 查询用 `xian query --catalog <目录> --q "<原话>" --json`。差异用 `xian updates records`，并读它的 `warning`。活动用 `xian events analyze`。一条龙研究用 `xian research run`。
-3. 客户端配置不是服务器结算。没有样本就不要把换算写成最终伤害。
+2. 按问题类型选择对应的查询入口（见下表）。差异用 `xian updates records`，并读它的 `warning`。活动用 `xian events analyze`。一条龙研究用 `xian research run`。
+3. 注意导表完整性边界：`lua tables` 导出的 JSON 分为 `nonempty`（非空配置表）、`runtime_generated`（运行时动态或 `*_partN` 分片延迟加载表，静态字面量导表不执行游戏 Lua 代码，顶层 `entries=0`）和 `empty`（空表），另有逻辑代码记入 `logic_skipped`。遇到 `runtime_generated` 表时，继续查对应的 `*_partN` 分片表或结合 Lua 源码核对，不要把 `entries=0` 误判为客户端无此数据。
+4. 客户端配置不是服务器结算。没有样本就不要把换算写成最终伤害。
+
+## 查询入口怎么选
+
+| 用户提问类型 | 示例 | 使用命令 |
+| --- | --- | --- |
+| 查中文名称或概念 | “查一下青铜丹房。” | `xian query --catalog <索引目录> --q "<中文词>" --json` |
+| 查某英文字段出现在哪些表 | “有哪些配置表包含 attack 字段？” | `xian query --index <索引目录> --kind field --q <字段名> --json` |
+| 查英文记录 key 或配置常量定义 | “找出 attack_grow_rate 的定义。” | `xian search --root <导表或源码目录> --q <英文标识符> --json` |
+| 在单张表内按字段条件筛选 | “筛出某表里 quality 等于 purple 的记录。” | `xian query --table <表.json> --field <字段> --op eq --value <值> --json` |
+| 跨表追踪某个道具 / 奖励 / 技能 ID 引用 | “某个道具 ID 出现在哪些系统里？”“追踪某奖励 ID 的所有配置引用。” | `xian query --link <ID> --tables-dir <导表目录> [--link-mode all\|semantic] --json` |
+
+`--link` 会递归遍历 dict 和 list，并将结果分为 `semantic_reference`（主键或具有明确 ID/图标/奖励/消耗语义的字段引用）和 `value_match`（仅数值相等、尚未确认引用语义的候选关联）。对于 `value_match`，不得直接宣称是已确认关联。
 
 ## 路由
 

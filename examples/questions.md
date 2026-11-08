@@ -12,8 +12,12 @@
 
 配置已经导出时：
 
-- 在索引里找名字里带「活动」的表，并说明这是客户端配置。
-- 打开某一张表，筛出某个字段大于指定值的行。
+- 查一下青铜丹房。（中文名称检索：`xian query --catalog <索引> --q "青铜丹房"`）
+- 找出 `attack_grow_rate` 的定义。（英文记录 key 或常量全文搜索：`xian search --root <目录> --q attack_grow_rate`）
+- 有哪些配置表包含 `attack` 字段？（英文字段名分布查询：`xian query --index <索引> --kind field --q attack`）
+- `97104` 这个道具出现在哪些系统里？（跨表递归关联查询：`xian query --link 97104 --tables-dir <导表目录>`）
+- 帮我追踪某个奖励 ID 的所有配置引用，并区分明确引用和仅数值相等的候选记录。（`xian query --link <奖励ID> --tables-dir <导表目录> --link-mode all`）
+- 打开某一张表，筛出某个字段大于指定值的行。（`xian query --table <表.json> --field <字段> --op gt --value <值>`）
 - 统计活动配置里的奖励和消耗，概率和限购不要算成确定收益。
 
 要研究机制时：

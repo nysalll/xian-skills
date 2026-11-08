@@ -1,5 +1,13 @@
 # 更新记录
 
+## 0.1.2 (v0.1.2-alpha, 2026-11-08)
+
+- **重构跨表关联查询（`xian query --link`）**：支持对 `dict` 和 `list`（含顶层数组表、嵌套字典、多层列表、奖励数组）进行带深度保护的递归遍历，返回 `source_channel`、`source_version`、`snapshot_id`、`table`、`record_key`、`field_path`、`matched_value`、`match_type` 与 `reference_confidence`。
+- **区分明确引用与候选值匹配**：将跨表匹配分为 `semantic_reference`（主键或具有明确 ID/图标/奖励/消耗语义的字段引用）与 `value_match`（仅数值相等、需人工确认的候选关联），支持 `--link-mode all|semantic` 及可读文本报告。
+- **完善导表数据完整性标记**：`xian lua tables`、`xian lua index` 与 `xian query --build-catalog` 区分 `nonempty`（非空配置表）、`runtime_generated`（运行时动态或 `*_partN` 分片延迟加载表，静态解析不执行 Lua 代码）、`empty`（空表）与 `logic_skipped`（逻辑代码）。
+- **增强 Windows 路径与启动器兼容性**：修复 `installers/windows/xian.cmd` 在 `cmd.exe` 下的变量展开问题，同时生成 `xian.cmd`、`xian.ps1` 与 `xian`（POSIX shell）；新增 `normalize_path` 处理反斜杠、末尾引号、跨 Shell 环境变量、`/c/Users/...` 路径以及 `config.json` 单反斜杠容错。
+- **补充第二台电脑实测回归测试**：新增覆盖 12 类跨表关联场景、数据完整性分类与 Windows 路径处理的合成回归测试。
+
 ## 0.1.1
 
 - 反编译器改为按用户确认后，从 marsinator358/luajit-decompiler-v2 的 `Mar_24_2024` Release 下载，并核对 SHA256。仓库仍不附带 EXE。

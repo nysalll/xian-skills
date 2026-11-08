@@ -1,6 +1,6 @@
 # xian-skills
 
-Local research toolkit and AI agent skills for the game 一念逍遥 (`v0.1.0-alpha`, Python package version `0.1.0`).
+Local research toolkit and AI agent skills for the game 一念逍遥 (`v0.1.2-alpha`, Python package version `0.1.2`).
 
 The toolkit runs on the player's own Windows PC (recommended with MuMu Player 12). It inspects local emulator state, reads game clients (`com.leiting.xian` official and `com.leiting.m71` zhengdao) installed by the player, manages content-addressed snapshots, decodes and indexes Lua config tables, compares versions or channels, analyzes activity rewards/costs, exports client assets, and parses user-authorized local packet captures.
 

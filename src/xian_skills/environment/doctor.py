@@ -53,23 +53,33 @@ def check_modules() -> list[dict]:
 
 
 def check_tools(cfg) -> list[dict]:
+    from xian_skills.tools.decompiler import resolve_decompiler
+
     rows = []
     for key, label, purpose in (
         ("decompiler_path", "luajit-decompiler", "LuaJIT 反编译"),
         ("vgmstream_path", "vgmstream", "CRI 音频解码"),
         ("ffmpeg_path", "ffmpeg", "视频转码"),
     ):
-        raw = (cfg.data.get(key) or "").strip()
-        path = Path(raw) if raw else None
-        which = shutil.which(label) if label != "luajit-decompiler" else None
+        if key == "decompiler_path":
+            path = resolve_decompiler(cfg.data.get(key) or "")
+            which = None
+        else:
+            raw = cfg.tool_path(key, which_names=(label, f"{label}-cli") if label == "vgmstream" else (label,))
+            path = Path(raw) if raw else None
+            which = shutil.which(label)
         ok = bool(path and path.is_file()) or bool(which)
         rows.append(
             {
                 "name": label,
                 "ok": ok,
-                "detail": str(path or which or "未配置"),
+                "detail": str(path if (path and path.is_file()) else (which or "未配置")),
                 "purpose": purpose,
-                "fix": f"把可执行文件路径写入配置 {key}。仓库不附带这些程序。",
+                "fix": (
+                    "确认后执行 xian tools decompiler --install --yes，或把可执行文件路径写入配置 decompiler_path。"
+                    if key == "decompiler_path"
+                    else f"把可执行文件路径写入配置 {key}。仓库不附带这些程序。"
+                ),
             }
         )
     return rows
@@ -79,7 +89,7 @@ def doctor(cfg, probe_devices: bool = True) -> dict:
     py = check_python()
     modules = check_modules()
     tools = check_tools(cfg)
-    from xian_skills.device.select import select_adb
+    from xian_skills.device.select import adb_source, select_adb
     from xian_skills.tools.decompiler import status as decompiler_status
 
     device_report = None
@@ -92,7 +102,16 @@ def doctor(cfg, probe_devices: bool = True) -> dict:
         from xian_skills.device.discover import choose_adb
 
         adb_path, adb_candidates = choose_adb(cfg.data.get("adb_path") or "")
-        device_report = {"adb": adb_path, "candidates": [{"path": item, "source": ""} for item in adb_candidates], "devices": [], "online": [], "offline": [], "note": "", "diagnosis": ""}
+        device_report = {
+            "adb": adb_path,
+            "source": adb_source(adb_path) if adb_path else "",
+            "candidates": [{"path": item, "source": adb_source(item)} for item in adb_candidates],
+            "devices": [],
+            "online": [],
+            "offline": [],
+            "note": "",
+            "diagnosis": "",
+        }
     adb_path = (device_report or {}).get("adb")
     ready = list((device_report or {}).get("online") or [])
     decompiler = decompiler_status(cfg.data.get("decompiler_path") or "")

@@ -6,7 +6,8 @@ import os
 import subprocess
 from pathlib import Path
 
-from xian_skills.device.adb import Adb
+from xian_skills.config.model import normalize_path_str
+from xian_skills.device.adb import Adb, adb_version
 from xian_skills.device.discover import _candidate_adbs, discover_endpoints
 
 
@@ -28,12 +29,13 @@ def running_adb_exes() -> list[str]:
     )
     try:
         result = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", command],
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             encoding="utf-8",
             errors="replace",
-            timeout=20,
+            timeout=15,
         )
     except (OSError, subprocess.TimeoutExpired):
         return []
@@ -54,9 +56,10 @@ def _same(left: str, right: str) -> bool:
 
 def select_adb(explicit: str = "", auto_connect: bool = True, replace: bool = False) -> dict:
     """Choose one adb binary. Never start a second server while one is already running."""
-    candidates = [{"path": path, "source": adb_source(path)} for path in _candidate_adbs(explicit)]
+    explicit_clean = normalize_path_str(explicit)
+    candidates = [{"path": path, "source": adb_source(path)} for path in _candidate_adbs(explicit_clean)]
     running = running_adb_exes()
-    requested = explicit if explicit and Path(explicit).is_file() else ""
+    requested = explicit_clean if explicit_clean and Path(explicit_clean).is_file() else ""
     note = ""
     if requested and running and not any(_same(requested, item) for item in running) and not replace:
         chosen = running[0]
@@ -70,6 +73,9 @@ def select_adb(explicit: str = "", auto_connect: bool = True, replace: bool = Fa
         mumu = [item["path"] for item in candidates if item["source"] == "mumu"]
         chosen = mumu[0] if mumu else (candidates[0]["path"] if candidates else "")
         note = "当前没有 adb 服务。优先使用 MuMu 自带的 adb。" if mumu else ""
+    distinct_sources = {item["source"] for item in candidates if item.get("source")}
+    if len(distinct_sources) > 1 and not note:
+        note = "检测到本机同时存在多套 adb（如 MuMu 与 Android SDK），已固定使用当前选中的 adb。"
     if not chosen:
         return {
             "adb": None,

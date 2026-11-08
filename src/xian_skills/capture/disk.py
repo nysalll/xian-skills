@@ -16,13 +16,18 @@ _PS = (
 def disk_busy(threshold: int = 60) -> list[tuple[str, int]]:
     if subprocess.os.name != "nt":
         return []
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", _PS],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", _PS],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=10,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
     busy = []
     for line in (result.stdout or "").splitlines():
         parts = line.strip().split("|")

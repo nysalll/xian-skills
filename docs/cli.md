@@ -17,6 +17,7 @@ xian doctor [--no-device]
 xian init [--data-dir DIR] [--adb PATH] [--device SERIAL] [--yes]
 xian status [--no-device] [--device SERIAL]
 xian verify [--device-check] [--device SERIAL]
+xian tools decompiler [--install --yes]
 xian cache clean --yes
 xian install [--platform a,b] [--project DIR] [--user] [--source DIR] [--force]
 xian platforms
@@ -50,13 +51,19 @@ xian lua constants --input FILE [--output FILE]
 xian lua index [--lua DIR] [--tables DIR] --output DIR
 xian query --build-catalog TABLES_DIR --output DIR [--channel CH] [--version VER] [--snapshot ID]
 xian query --catalog DIR --q TEXT [--limit N]
-xian query --link ID --tables-dir DIR [--channel CH] [--version VER] [--snapshot ID] [--limit N]
+xian query --link ID [--tables-dir DIR | --catalog DIR] [--link-mode all|semantic] [--max-depth N] [--channel CH] [--version VER] [--snapshot ID] [--limit N]
 xian query --index DIR [--kind file|table|field|func] --q TEXT [--limit N]
 xian query --table FILE [--field NAME --op eq|ne|gt|ge|lt|le|contains --value TEXT] [--limit N]
 xian search --root DIR --q TEXT [--limit N]
 ```
 
-反编译器路径来自配置 `decompiler_path`。
+反编译器可通过 `xian tools decompiler --install --yes` 下载固定版本并校验 SHA256，或来自配置 `decompiler_path`。
+
+`xian query --link` 会递归遍历 JSON `dict` 与 `list`（含顶层数组表、嵌套字典、多层列表和奖励数组），并将匹配结果分为：
+
+- `semantic_reference`：顶层主键或具有明确 ID/图标/奖励/消耗语义的跨表引用（`reference_confidence` 为 `high` 或 `medium`）。
+- `value_match`：仅数值或字符串相等、尚未确认引用语义的候选关联（`reference_confidence` 为 `low`）。
+- `--link-mode semantic` 仅在 `hits` 中返回 `semantic_reference`；`--link-mode all`（默认）返回全部递归匹配并区分标记。
 
 ## 抓包
 

@@ -7,6 +7,7 @@ import operator
 import re
 from pathlib import Path
 
+from xian_skills.config.model import normalize_path
 from xian_skills.errors import XianError
 
 OPS = {
@@ -32,7 +33,7 @@ def _table_payload(path: Path):
 
 
 def query_index(index_dir: Path, kind: str, text: str, limit: int = 50) -> dict:
-    index_dir = Path(index_dir)
+    index_dir = normalize_path(index_dir) or Path(index_dir)
     master_path = index_dir / "master_index.json"
     func_path = index_dir / "function_index.json"
     if not master_path.is_file():
@@ -69,28 +70,42 @@ def _number(text: str):
 
 
 def query_table(path: Path, field: str | None, op: str | None, value: str | None, limit: int = 50) -> dict:
-    data = _table_payload(Path(path))
-    if not isinstance(data, dict):
-        raise XianError("表数据不是对象，无法按字段筛选")
+    path = normalize_path(path) or Path(path)
+    raw_payload = _load_json(path)
+    data = raw_payload["data"] if isinstance(raw_payload, dict) and "data" in raw_payload else raw_payload
+    if isinstance(data, dict):
+        items = list(data.items())
+    elif isinstance(data, list):
+        items = [(str(idx), item) for idx, item in enumerate(data)]
+    else:
+        raise XianError("表数据不是对象或数组，无法按字段筛选")
     rows = []
     compare = OPS.get(op or "eq")
     if op and compare is None:
         raise XianError(f"不支持的比较 {op}")
     expected = _number(value) if value is not None else None
-    for key, row in data.items():
+    for key, row in items:
         if field is None:
-            rows.append({"id": key, "row": row})
+            rows.append({"id": str(key), "row": row})
         elif isinstance(row, dict) and field in row:
             current = row[field]
             if op is None or compare(current, expected):
-                rows.append({"id": key, "value": current, "row": row})
+                rows.append({"id": str(key), "value": current, "row": row})
         if len(rows) >= limit:
             break
-    return {"table": str(path), "count": len(rows), "hits": rows}
+    result = {"table": str(path), "count": len(rows), "hits": rows}
+    if isinstance(raw_payload, dict):
+        if raw_payload.get("data_status"):
+            result["data_status"] = raw_payload["data_status"]
+        if raw_payload.get("runtime_hint"):
+            result["runtime_hint"] = raw_payload["runtime_hint"]
+        if raw_payload.get("part_pattern"):
+            result["part_pattern"] = raw_payload["part_pattern"]
+    return result
 
 
 def search_text(root: Path, text: str, limit: int = 40) -> dict:
-    root = Path(root)
+    root = normalize_path(root) or Path(root)
     if not root.exists():
         raise XianError(f"搜索目录不存在：{root}")
     hits = []

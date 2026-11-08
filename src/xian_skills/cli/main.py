@@ -7,9 +7,13 @@ import json
 import sys
 from pathlib import Path
 
-from xian_skills.config.model import load_config, save_config
+from xian_skills.config.model import home_dir, load_config, normalize_path, save_config
 from xian_skills.errors import EnvError, NeedConfirm, XianError
 from xian_skills.version import __version__
+
+
+def _p(raw: str | Path) -> Path:
+    return normalize_path(raw) or Path(raw)
 
 
 def _print(payload, as_json: bool, text: str | None = None) -> None:
@@ -20,7 +24,7 @@ def _print(payload, as_json: bool, text: str | None = None) -> None:
 
 
 def _cfg(args):
-    path = Path(args.config) if getattr(args, "config", "") else None
+    path = _p(args.config) if getattr(args, "config", "") else None
     return load_config(path)
 
 
@@ -66,14 +70,24 @@ def _clients(cfg, adb):
 def _write_launcher() -> None:
     exe = Path(sys.executable).with_name("xian.exe")
     if not exe.is_file():
-        return
-    home = Path.home() / ".xian-skills"
+        alt = Path(sys.executable).parent / "Scripts" / "xian.exe"
+        if alt.is_file():
+            exe = alt
+    home = home_dir()
     bin_dir = home / "bin"
     bin_dir.mkdir(parents=True, exist_ok=True)
-    (home / "xian-launcher.txt").write_text(str(exe) + "\n", encoding="utf-8")
+    if exe.is_file():
+        (home / "xian-launcher.txt").write_text(str(exe) + "\n", encoding="utf-8")
     bundled = Path(__file__).resolve().parents[3] / "installers" / "windows" / "xian.cmd"
     if bundled.is_file():
         (bin_dir / "xian.cmd").write_bytes(bundled.read_bytes())
+    target_posix = (exe if exe.is_file() else Path(sys.executable)).resolve().as_posix()
+    if exe.is_file():
+        (bin_dir / "xian").write_text(f'#!/usr/bin/env sh\nexec "{target_posix}" "$@"\n', encoding="utf-8")
+        (bin_dir / "xian.ps1").write_text(f'& "{exe.resolve()}" @args\r\nexit $LASTEXITCODE\r\n', encoding="utf-8")
+    else:
+        (bin_dir / "xian").write_text(f'#!/usr/bin/env sh\nexec "{target_posix}" -m xian_skills "$@"\n', encoding="utf-8")
+        (bin_dir / "xian.ps1").write_text(f'& "{Path(sys.executable).resolve()}" -m xian_skills @args\r\nexit $LASTEXITCODE\r\n', encoding="utf-8")
 
 
 def cmd_tools_decompiler(args):
@@ -283,23 +297,27 @@ def cmd_client_materialize(args):
 def cmd_lua_decode(args):
     from xian_skills.lua.decrypt import decode_raw, decode_tree
 
+    inp = _p(args.input)
+    out_path = _p(args.output)
     if args.raw:
-        data = Path(args.input).read_bytes()
+        data = inp.read_bytes()
         out = decode_raw(data)
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_bytes(out)
-        payload = {"output": args.output, "lj": out.startswith(b"\x1bLJ"), "size": len(out)}
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_bytes(out)
+        payload = {"output": str(out_path), "lj": out.startswith(b"\x1bLJ"), "size": len(out)}
     else:
-        payload = decode_tree(Path(args.input), Path(args.output), tag=args.tag, limit=args.limit)
+        payload = decode_tree(inp, out_path, tag=args.tag, limit=args.limit)
     _print(payload, args.json)
     return 0
 
 
 def cmd_lua_decompile(args):
     from xian_skills.lua.decompile import decompile_tree
+    from xian_skills.tools.decompiler import resolve_decompiler
 
     cfg = _cfg(args)
-    payload = decompile_tree(Path(args.input), Path(args.output), Path(cfg.data.get("decompiler_path") or ""), limit=args.limit)
+    decompiler = resolve_decompiler(cfg.data.get("decompiler_path") or "") or Path(cfg.data.get("decompiler_path") or "")
+    payload = decompile_tree(_p(args.input), _p(args.output), decompiler, limit=args.limit)
     _print(payload, args.json)
     return 0 if payload["fail"] == 0 else 3
 
@@ -307,7 +325,7 @@ def cmd_lua_decompile(args):
 def cmd_lua_tables(args):
     from xian_skills.lua.pipeline import export_tree
 
-    payload = export_tree(Path(args.input), Path(args.output))
+    payload = export_tree(_p(args.input), _p(args.output))
     _print(payload, args.json)
     return 0 if payload["fail"] == 0 else 3
 
@@ -315,10 +333,11 @@ def cmd_lua_tables(args):
 def cmd_lua_constants(args):
     from xian_skills.lua.pipeline import dump_constants
 
-    payload = dump_constants(Path(args.input))
+    payload = dump_constants(_p(args.input))
     if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        out_path = _p(args.output)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     _print({"strings": len(payload.get("strings") or []), "output": args.output, "error": payload.get("error")}, args.json)
     return 0
 
@@ -326,40 +345,60 @@ def cmd_lua_constants(args):
 def cmd_lua_index(args):
     from xian_skills.lua.pipeline import build_index
 
-    payload = build_index(Path(args.lua) if args.lua else None, Path(args.tables) if args.tables else None, Path(args.output))
+    payload = build_index(_p(args.lua) if args.lua else None, _p(args.tables) if args.tables else None, _p(args.output))
     _print(payload, args.json)
     return 0
 
 
 def cmd_query(args):
-    from xian_skills.query.ask import ask, build_catalog, link_id, load_catalog
+    from xian_skills.query.ask import ask, build_catalog, format_link_report, link_id, load_catalog
     from xian_skills.query.engine import query_index, query_table
 
     provenance = {"channel": args.channel, "version": args.version, "snapshot": args.snapshot}
+    text_out = None
     if args.build_catalog:
         if not args.output:
             raise XianError("构建目录索引需要 --output 指定输出目录")
-        payload = build_catalog(Path(args.build_catalog), Path(args.output), provenance)
-    elif args.catalog and args.q:
-        payload = ask(load_catalog(Path(args.catalog)), args.q, limit=args.limit)
-    elif args.link and args.tables_dir:
-        payload = link_id(Path(args.tables_dir), args.link, provenance, limit=args.limit)
+        payload = build_catalog(_p(args.build_catalog), _p(args.output), provenance)
+    elif args.catalog and args.q and not args.link:
+        payload = ask(load_catalog(_p(args.catalog)), args.q, limit=args.limit)
+    elif args.link and (args.tables_dir or args.catalog):
+        tables_dir = _p(args.tables_dir) if args.tables_dir else None
+        if tables_dir is None and args.catalog:
+            cat = load_catalog(_p(args.catalog))
+            if not cat.get("tables_dir"):
+                raise XianError("目录索引中缺少 tables_dir，请传入 --tables-dir")
+            tables_dir = _p(cat["tables_dir"])
+            provenance = {
+                "channel": args.channel or cat.get("channel"),
+                "version": args.version or cat.get("version"),
+                "snapshot": args.snapshot or cat.get("snapshot"),
+            }
+        payload = link_id(
+            tables_dir,
+            args.link,
+            provenance,
+            limit=args.limit,
+            mode=args.link_mode,
+            max_depth=args.max_depth,
+        )
+        text_out = format_link_report(payload)
     elif args.table:
-        payload = query_table(Path(args.table), args.field or None, args.op or None, args.value or None, limit=args.limit)
+        payload = query_table(_p(args.table), args.field or None, args.op or None, args.value or None, limit=args.limit)
         payload.update({key: value for key, value in provenance.items() if value})
     elif args.index and args.q:
-        payload = query_index(Path(args.index), args.kind, args.q, limit=args.limit)
+        payload = query_index(_p(args.index), args.kind, args.q, limit=args.limit)
         payload.update({key: value for key, value in provenance.items() if value})
     else:
-        raise XianError("查询需要 --table、--catalog 加 --q，或 --index 加 --q")
-    _print(payload, args.json)
+        raise XianError("查询需要 --table、--catalog 加 --q、--index 加 --q，或 --link 加 --tables-dir/--catalog")
+    _print(payload, args.json, text_out)
     return 0
 
 
 def cmd_search(args):
     from xian_skills.query.engine import search_text
 
-    payload = search_text(Path(args.root), args.q, limit=args.limit)
+    payload = search_text(_p(args.root), args.q, limit=args.limit)
     _print(payload, args.json)
     return 0
 
@@ -593,10 +632,11 @@ def cmd_install(args):
         "doubao-work",
     ]
     install_user = args.user or not args.project
+    _write_launcher()
     payload = install_skills(
         skills_source(args.source),
         Path.home(),
-        Path(args.project) if args.project else None,
+        _p(args.project) if args.project else None,
         platforms,
         force=args.force,
         backup_root=cfg.data_dir.parent / "backup",
@@ -721,6 +761,8 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument("--build-catalog", dest="build_catalog", default="")
     query.add_argument("--output", default="")
     query.add_argument("--link", default="")
+    query.add_argument("--link-mode", dest="link_mode", default="all", choices=("all", "semantic"))
+    query.add_argument("--max-depth", dest="max_depth", type=int, default=16)
     query.add_argument("--tables-dir", default="")
     query.add_argument("--channel", default="")
     query.add_argument("--version", default="")

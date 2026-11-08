@@ -6,7 +6,7 @@ import hashlib
 import urllib.request
 from pathlib import Path
 
-from xian_skills.config.model import Config, save_config
+from xian_skills.config.model import Config, home_dir, normalize_path, normalize_path_str, save_config
 from xian_skills.errors import EnvError, NeedConfirm, XianError
 
 RELEASE = {
@@ -53,12 +53,22 @@ SOFTWARE.
 
 
 def install_dir(home: Path | None = None) -> Path:
-    root = Path(home) if home else Path.home() / ".xian-skills"
+    root = Path(home) if home else home_dir()
     return root / "tools" / "luajit-decompiler-v2" / RELEASE["tag"]
 
 
 def target_exe(home: Path | None = None) -> Path:
     return install_dir(home) / RELEASE["asset"]
+
+
+def resolve_decompiler(configured: str = "", home: Path | None = None) -> Path | None:
+    cleaned = normalize_path(configured)
+    if cleaned and cleaned.is_file():
+        return cleaned
+    pinned = target_exe(home)
+    if pinned.is_file():
+        return pinned
+    return None
 
 
 def file_sha256(path: Path) -> str:
@@ -87,11 +97,12 @@ def inspect_exe(path: Path) -> dict:
 def status(configured: str = "", home: Path | None = None) -> dict:
     pinned = target_exe(home)
     pinned_info = inspect_exe(pinned)
-    configured_info = inspect_exe(Path(configured)) if configured else {"present": False, "sha256_ok": False}
+    cleaned = normalize_path_str(configured)
+    configured_info = inspect_exe(Path(cleaned)) if cleaned else {"present": False, "sha256_ok": False}
     usable = configured_info.get("present") or pinned_info.get("sha256_ok")
     return {
         "release": RELEASE,
-        "configured_path": configured,
+        "configured_path": cleaned,
         "configured": configured_info,
         "pinned_copy": pinned_info,
         "usable": bool(usable),

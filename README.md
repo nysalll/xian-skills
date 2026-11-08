@@ -1,8 +1,10 @@
 # xian-skills
 
-面向《一念逍遥》玩家的本机游戏数据研究工具与 AI Agent 技能集（当前版本：`0.1.1`）。
+面向《一念逍遥》玩家的本机游戏数据研究工具与 AI Agent 技能集（当前版本：`0.1.2` / `v0.1.2-alpha`）。
 
 `xian-skills` 在玩家自己的 Windows 电脑上运行：连接本机 MuMu 模拟器、识别自己安装的正式服或证道服客户端、提取与增量管理快照、解密并导出配置表、检索道具与神通数值、对比版本差异、拆解活动奖励与消耗、导出贴图/模型/音频/视频，并在用户授权后录制本机会话流量辅助秘境与切磋机制研究。
+
+本项目已在第二台独立的 Windows + MuMu 12 + WorkBuddy 电脑上完成从 GitHub 安装、客户端同步、Lua 解密、反编译、全量导表、目录索引与“灵域”系统跨表机制研究的完整实测（见 [第二台电脑实测记录](docs/verification/2026-11-08-second-pc.md)）。
 
 本仓库不包含游戏客户端、账号凭据、会话抓包或未授权的第三方二进制工具，也不会向外部服务上传玩家数据。
 
@@ -30,10 +32,10 @@
 | Cursor | 复制到 `.cursor/skills/` 与 `.agents/skills/` | 已验证文件安装与 CLI 工作流，待新会话验证自动触发 |
 | Kimi Code | 复制到 `.kimi-code/skills/` 与 `.agents/skills/` | 已验证文件安装（限 Kimi Code CLI，非网页版） |
 | Kiro | 复制到 `.kiro/skills/` | 已验证文件安装（限桌面 IDE/CLI） |
-| 腾讯 WorkBuddy | 复制到 `~/.workbuddy/skills/`，或上传顶层就是技能文件夹的 ZIP | 调用 `%USERPROFILE%\.xian-skills\bin\xian.cmd`，不要改 SKILL.md。不使用 `.codebuddy/` |
+| 腾讯 WorkBuddy | 复制到 `~/.workbuddy/skills/`，或上传顶层就是技能文件夹的 ZIP | 已在第二台电脑实测完整 CLI 研究流程；调用 `%USERPROFILE%\.xian-skills\bin\xian.cmd`，不要改 `SKILL.md`。不使用 `.codebuddy/` |
 | 豆包工作 | 生成 `%USERPROFILE%\.xian-skills\dist\xian-skills-doubao-work.zip` | 需在客户端“技能 → 上传技能”导入并选“本地电脑”模式 |
 
-各平台目录规范详见 [docs/platforms.md](docs/platforms.md)。`xian install` 输出中的 `invocation_verified` 默认为 `false`，表示技能文件已就绪但未宣称已在对应客户端内完成对话验证。
+各平台目录规范详见 [docs/platforms.md](docs/platforms.md)。`xian install` 输出中的 `invocation_verified` 默认为 `false`，表示复制文件或生成上传包不等于已在全部 7 个客户端界面中逐一完成对话触发验证。
 
 ---
 
@@ -111,18 +113,36 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 # 增量同步完整客户端快照（需 --yes，旧快照不会覆盖）
 .\.venv\Scripts\xian.exe client sync --channel official --yes
 
-# 解密 Lua64、反编译、导出配置表 JSON 并建立目录索引
+# 解密 Lua64、安装/调用反编译器、导出配置表 JSON 并建立目录索引
 .\.venv\Scripts\xian.exe lua decode --input <Lua64目录> --output <字节码目录> --tag Lua64
+.\.venv\Scripts\xian.exe tools decompiler --install --yes
 .\.venv\Scripts\xian.exe lua decompile --input <字节码目录> --output <源码目录>
 .\.venv\Scripts\xian.exe lua tables --input <源码目录> --output <导表目录>
+.\.venv\Scripts\xian.exe lua index --lua <源码目录> --tables <导表目录> --output <索引目录>
 .\.venv\Scripts\xian.exe query --build-catalog <导表目录> --output <索引目录> --channel official --version <版本号> --snapshot <快照ID>
 
-# 查询配置、分析活动、生成跨版本或跨渠道差异报告
+# 五类常用配置查询与跨表关联
 .\.venv\Scripts\xian.exe query --catalog <索引目录> --q "青铜丹房"
+.\.venv\Scripts\xian.exe query --index <索引目录> --kind field --q attack
+.\.venv\Scripts\xian.exe search --root <导表或源码目录> --q attack_grow_rate
+.\.venv\Scripts\xian.exe query --table <某表.json> --field quality --op eq --value purple
+.\.venv\Scripts\xian.exe query --link 97104 --tables-dir <导表目录> --link-mode all
+
+# 分析活动、生成跨版本或跨渠道差异报告
 .\.venv\Scripts\xian.exe events analyze --tables <导表目录> --output 活动分析.md
 .\.venv\Scripts\xian.exe updates records --left <正式服导表> --right <证道服导表> --relation cross-channel --output 渠道差异.md
 .\.venv\Scripts\xian.exe updates report --left <旧版本目录> --right <新版本目录> --output 更新报告.md
 ```
+
+### 查询入口与跨表关联说明
+
+| 查询场景 | 推荐命令 | 说明 |
+| --- | --- | --- |
+| 中文名称检索 | `xian query --catalog <索引> --q "<中文名>"` | 在单渠道目录索引中匹配 `name`/`title`/`skill_name`/`show_name` 及相关表 |
+| 英文字段名分布 | `xian query --index <索引> --kind field --q <字段名>` | 查找哪些配置表包含指定字段（如 `attack`） |
+| 英文记录 key / 定义搜索 | `xian search --root <目录> --q <英文key>` | 在导表 JSON 或反编译 Lua 源码中全文检索常量或 key（如 `attack_grow_rate`） |
+| 单表条件筛选 | `xian query --table <表.json> --field <字段> --op <操作符> --value <值>` | 支持字典表与顶层数组表的字段筛选 |
+| 跨表 ID 引用追踪 | `xian query --link <ID> --tables-dir <导表目录> [--link-mode all\|semantic]` | 递归扫描 `dict` 与 `list`，区分 `semantic_reference`（主键或明确 ID/图标/奖励/消耗语义引用）与 `value_match`（仅数值相等的候选关联） |
 
 完整命令与参数说明见 [docs/cli.md](docs/cli.md)。退出码约定：`0` 成功，`1` 参数或输入错误，`2` 环境或依赖缺失，`3` 执行失败，`4` 需要用户确认（`--yes`）。
 
@@ -181,11 +201,13 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 
 ---
 
-## 7. 当前 Alpha 版本（`v0.1.0-alpha`）的真实限制
+## 7. 当前 Alpha 版本（`v0.1.2-alpha`）的真实限制
 
 - **客户端配置不等于服务器最终结算**：配置表中的系数、奖励和活动规则仅代表客户端本地数据；未下发的服务器随机过程、实时个人限购与最终伤害结算无法单凭配置表确认。
-- **平台对话触发尚未逐一实测**：7 个目标 AI Agent 平台的技能目录安装与上传包生成均已实现，但尚未在全部 7 个客户端界面中逐一发起真实对话验证（`invocation_verified: false`）。
-- **真机已验证与待验证边界**：正式服/证道服完整快照同步、Lua 批量解密、配置表反编译与全量导表、目录索引检索、跨渠道记录差异、贴图/模型/CRI 音频导出、USM 视频拆流均已在 Windows + MuMu 12 真机环境验证；开启 `adb root` 后的实机在线抓包录制、真实会话上行解码、MP4 转码（需安装 `ffmpeg`）及 `reward.lua` 等复杂奖励结构仍需按需验证（详见本机验证记录）。
+- **静态配置导表的数据完整性边界**：反编译成功不等于所有表都能靠静态字面量完整提取。例如在第二台电脑的 3001 个 Lua 文件中，2967 张表导出为 JSON，34 个文件属于逻辑代码跳过；导出表中包含 21 张通过运行时逻辑或 `rerequire("..._partN")` 动态生成的表（标记为 `data_status: "runtime_generated"`，顶层 `entries` 为 `0`）以及 19 张空表（`data_status: "empty"`）。为保证安全，工具不会执行不受信任的游戏 Lua 代码来生成动态表，研究时应继续查询对应的 `*_partN` 分片表或结合反编译源码核对。
+- **跨表关联中的数值相等不等同于确认引用**：`xian query --link` 会将明确具有 ID/图标/奖励/消耗语义的匹配标记为 `semantic_reference`，将仅数值相等但语义未明的匹配标记为 `value_match`（候选关联），避免把巧合相同的数值直接当成真实关联。
+- **平台对话触发验证状态**：7 个目标 AI Agent 平台的技能目录安装与上传包生成均已实现，其中开发机（Cursor）与第二台电脑（腾讯 WorkBuddy）已完成真实客户端配置研究全流程验证，其余平台尚未逐一在客户端界面中发起真实对话验证（`invocation_verified: false`）。
+- **真机已验证与待验证边界**：正式服/证道服完整快照同步、Lua 批量解密、配置表反编译与全量导表、目录索引检索、跨表关联研究、跨渠道记录差异、贴图/模型/CRI 音频导出、USM 视频拆流均已在 Windows + MuMu 12 真机环境验证；开启 `adb root` 后的实机在线抓包录制、真实会话上行解码、MP4 转码（需安装 `ffmpeg`）及 `frida` 运行时探测仍需按需授权验证（详见本机验证记录）。
 
 ---
 
@@ -220,9 +242,10 @@ powershell -ExecutionPolicy Bypass -File .\installers\windows\install.ps1
 - [测试说明](docs/testing.md)
 - [项目架构](docs/architecture.md)
 - [许可证与外部组件说明](docs/licenses.md)
-- 本机验证记录：
+- 本机与第二台电脑验证记录：
   - [基础环境与初步检查 (2026-11-08)](docs/verification/local-2026-11-08.md)
   - [真实客户端快照与资源验收 (2026-11-08)](docs/verification/2026-11-08-real-client.md)
   - [全量配置查询、差异与工作流验证 (2026-11-08)](docs/verification/2026-11-08-agent.md)
+  - [第二台电脑 WorkBuddy 实测与反馈修复 (2026-11-08)](docs/verification/2026-11-08-second-pc.md)
 
 English overview: [README.en.md](README.en.md).

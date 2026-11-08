@@ -249,7 +249,7 @@ def parse_capture(pcap: Path, out: Path, profile: str = "full") -> dict:
     protocol = _protocol()
     if profile not in protocol.PROFILES:
         raise XianError(f"未知 profile {profile}")
-    if not wait_disk(timeout=120):
+    if pcap.stat().st_size >= 1_000_000 and not wait_disk(timeout=120):
         raise XianError("磁盘占用过高，稍后再解析", code=3)
     out.parent.mkdir(parents=True, exist_ok=True)
     if out.exists():

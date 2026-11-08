@@ -1,12 +1,11 @@
 @echo off
 setlocal
 set "LAUNCH=%USERPROFILE%\.xian-skills\xian-launcher.txt"
-if exist "%LAUNCH%" (
-  set /p XIANEXE=<"%LAUNCH%"
-  if exist "%XIANEXE%" (
-    "%XIANEXE%" %*
-    exit /b %ERRORLEVEL%
-  )
+set "XIANEXE="
+if exist "%LAUNCH%" set /p XIANEXE=<"%LAUNCH%"
+if defined XIANEXE if exist "%XIANEXE%" (
+  "%XIANEXE%" %*
+  exit /b %ERRORLEVEL%
 )
 where xian >nul 2>nul
 if not errorlevel 1 (
